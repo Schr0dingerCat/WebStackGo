@@ -185,6 +185,9 @@
                     </div>
                     <div class="panel-body">
                         <p class="text-left">1、在程序运行时手动修改webstack.json，会导致内存中保存的数据跟文件中的数据不一致。再在后台进行操作，会导致手动修改的数据丢失。</p>
+                        <p class="text-left">2、分类必须有子分类，并且新增顶层分类时会自动添加名为“-顶层分类名”的子分类。</p>
+                        <p class="text-left">3、顶层分类下不能直接添加网址，网址必须都添加在子分类下。</p>
+                        <p class="text-left">4、顶层分类里默认包含“<a href="/about.html" target="_blank">关于本站</a>”，其没有子分类，其下没有网址。</p>
                     </div>
                 </div>
                 <div class="panel panel-default">
@@ -840,23 +843,25 @@
                                     <select class="form-control col-md-6" name="select_class" id="select-class-sort" style="display: none;"></select>
                                 </div>
                                 <script type="text/javascript">
-                                    function showSelectSubClass(index, value=false) {
+                                    function showSelectSubClass(index, value=-1) {
                                         let modal = $('#modal-class-edit');
                                         let classid = modal.find('#class_id').val();
                                         let menuSub = WebStack['Menu'][index]['sub'];
-                                        $("#select-class-sort").find('option').remove();
+                                        modal.find("#select-class-sort").find('option').remove();
                                         if (menuSub.length > 0) {
-                                            $("#select-class-sort").show();
+                                            modal.find("#select-class-sort").show();
                                             for (let i=0; i<menuSub.length; i++) {
-                                                $("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index+'" value="'+index+'-'+i+'">'+menuSub[i]['name']+'</option>');
+                                                modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index+'" value="'+index+'-'+i+'">'+menuSub[i]['name']+'</option>');
                                             }
-                                            modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index1+'" value="'+index1+'-'+menuSub.length+'">'+'(分类最后)'+'</option>');
-                                            if (value !== false) {
-                                                $("#select-class-sort").find('option[value="'+index+'-'+value+'"]').attr("selected",true);
+                                            modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index+'" value="'+index+'-'+menuSub.length+'">'+'(分类最后)'+'</option>');
+                                            if (value === -1) {
+                                                modal.find("#select-class-sort").find('option[value="'+index+'-'+menuSub.length+'"]').attr("selected",true);
+                                            } else {
+                                                modal.find("#select-class-sort").find('option[value="'+index+'-'+value+'"]').attr("selected",true);
                                             }
                                         } else {
-                                            $("#select-class-sort").hide();
-                                            $("#select-class-sort").empty();
+                                            modal.find("#select-class-sort").hide();
+                                            modal.find("#select-class-sort").empty();
                                         }
                                     }
 
@@ -864,16 +869,18 @@
                                     {
                                         // 上层分类 选择分类时，自动选择顶层分类排序
                                         $("#select-up-class").change(function() {
+                                            let modal = $('#modal-class-edit');
                                             // 上层分类选择的不是是“顶层分类”而是特定某个顶层分类时，顶层排序分类设置为不可选，值设定为当前选择的该顶层分类
                                             let upclassindex = $(this).children('option:selected').val();
                                             if (upclassindex == -1) {
-                                                $('#modal-class-edit').find("#select-up-class-sort").removeAttr("disabled");
-                                                $("#select-class-sort").hide();
-                                                $("#select-class-sort").empty();
+                                                modal.find("#select-up-class-sort").removeAttr("disabled");
+                                                modal.find("#select-up-class-sort").val(WebStack['Menu'].length-1);
+                                                modal.find("#select-class-sort").hide();
+                                                modal.find("#select-class-sort").empty();
                                             } else {
-                                                $('#modal-class-edit').find("#select-up-class-sort").val(upclassindex);
-                                                $('#modal-class-edit').find("#select-up-class-sort").attr("disabled","disabled");
-                                                showSelectSubClass(upclassindex, 0);
+                                                modal.find("#select-up-class-sort").val(upclassindex);
+                                                modal.find("#select-up-class-sort").attr("disabled","disabled");
+                                                showSelectSubClass(upclassindex, -1);
                                             }
                                         });
                                     });
