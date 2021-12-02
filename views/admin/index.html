@@ -148,9 +148,9 @@
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                             <img src="assets/images/user-4.png" alt="user-image" class="img-circle img-inline userpic-32" width="28" />
                             <span>
-								{{.login.Username}}
-								<i class="fa-angle-down"></i>
-							</span>
+                                {{.login.Username}}
+                                <i class="fa-angle-down"></i>
+                            </span>
                         </a>
                         <ul class="dropdown-menu user-profile-menu list-unstyled">
                             <li>
@@ -753,6 +753,7 @@
         </script>
     </div>
     <!-- 编辑分类Modal -->
+    <!-- 增加选择排序功能 -->
     <div class="modal fade" id="modal-class-edit">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -823,6 +824,65 @@
                             </div>
                         </div>
                     </div>
+                    <!-- 增加分类指定位置功能 -->
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label class="control-label">分类位置(下列选定分类之前)</label>
+                            <div class="row">
+                                <div class="col-md-6" style="margin-bottom: 10px;">
+                                    <select class="form-control" name="select_class" id="select-up-class-sort">
+                                        {{range $index,$menu := .webstack.Menu}}
+                                            <option value="{{$index}}">{{$menu.Name}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <select class="form-control col-md-6" name="select_class" id="select-class-sort" style="display: none;"></select>
+                                </div>
+                                <script type="text/javascript">
+                                    function showSelectSubClass(index, value=false) {
+                                        let modal = $('#modal-class-edit');
+                                        let classid = modal.find('#class_id').val();
+                                        let menuSub = WebStack['Menu'][index]['sub'];
+                                        $("#select-class-sort").find('option').remove();
+                                        if (menuSub.length > 0) {
+                                            $("#select-class-sort").show();
+                                            for (let i=0; i<menuSub.length; i++) {
+                                                $("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index+'" value="'+index+'-'+i+'">'+menuSub[i]['name']+'</option>');
+                                            }
+                                            modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index1+'" value="'+index1+'-'+menuSub.length+'">'+'(分类最后)'+'</option>');
+                                            if (value !== false) {
+                                                $("#select-class-sort").find('option[value="'+index+'-'+value+'"]').attr("selected",true);
+                                            }
+                                        } else {
+                                            $("#select-class-sort").hide();
+                                            $("#select-class-sort").empty();
+                                        }
+                                    }
+
+                                    jQuery(document).ready(function($)
+                                    {
+                                        // 上层分类 选择分类时，自动选择顶层分类排序
+                                        $("#select-up-class").change(function() {
+                                            // 上层分类选择的不是是“顶层分类”而是特定某个顶层分类时，顶层排序分类设置为不可选，值设定为当前选择的该顶层分类
+                                            let upclassindex = $(this).children('option:selected').val();
+                                            if (upclassindex == -1) {
+                                                $('#modal-class-edit').find("#select-up-class-sort").removeAttr("disabled");
+                                                $("#select-class-sort").hide();
+                                                $("#select-class-sort").empty();
+                                            } else {
+                                                $('#modal-class-edit').find("#select-up-class-sort").val(upclassindex);
+                                                $('#modal-class-edit').find("#select-up-class-sort").attr("disabled","disabled");
+                                                showSelectSubClass(upclassindex, 0);
+                                            }
+                                        });
+                                    });
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-white" data-dismiss="modal">取消</button>
@@ -866,6 +926,8 @@
                     icon: modal.find('.modal-body #select-class-icon option:selected').val(),
                     class_up: modal.find('.modal-body #select-up-class option:selected').val(),
                     class_id: modal.find('.modal-body #class-id').val(),
+                    class_up_sort: modal.find('.modal-body #select-up-class-sort option:selected').val(),
+                    class_id_sort: modal.find('.modal-body #select-class-sort option:selected').val(),
                 }
                 console.log(addData);
                 submit("?cmd=class-add", addData, function (res) {
@@ -880,6 +942,8 @@
                     icon: modal.find('.modal-body #select-class-icon option:selected').val(),
                     class_up: modal.find('.modal-body #select-up-class option:selected').val(),
                     class_id: modal.find('.modal-body #class-id').val(),
+                    class_up_sort: modal.find('.modal-body #select-up-class-sort option:selected').val(),
+                    class_id_sort: modal.find('.modal-body #select-class-sort option:selected').val(),
                 }
                 console.log(editData);
                 submit("?cmd=class-edit", editData, function (res) {
@@ -1300,7 +1364,9 @@
             let button = $(event.relatedTarget);
             let index = button.data('index');
             let type  = button.data('class');
-            let modal = $(this)
+            let modal = $(this);
+            // let classid = modal.find('#class-id').val(); //使用该方法获得的id为前一次id，第一次为默认值-1。使用index
+            modal.find("#select-up-class-sort").removeAttr("disabled");
             if (type == 'add') {
                 modal.find('.modal-title').text("添加分类");
                 modal.find(".modal-body #class-name").val("");
@@ -1329,6 +1395,48 @@
                 modal.find(".modal-body #select-class-icon").val(menuClass['icon']);
                 $("#select-class-icon").prev().find("i").attr("class", menuClass['icon']);
             }
+
+                // 在新增或编辑移动分类时，一个重要的问题是顶层分类下有网址但没有子分类，该问题需要处理
+                // 服务端对上述问题进行处理，新加顶层分类时，自动生成 "-顶层分类名"的子分类
+                // 编辑时，为了方便，不去掉自身
+                let index1 = modal.find(".modal-body #select-up-class").val();
+                let menu = WebStack['Menu'];
+                if ((index1 + "").indexOf("-") == 0) { // 上层分类 = -1， 添加 修改顶层分类
+                    if (type == "add") {
+                        // 'option[value="'+WebStack['Menu'].length - 1+'"]' 会报错
+                        let maxindex = WebStack['Menu'].length - 1
+                        // $("#select-up-class-sort").find('option[value="'+2+'"]').attr("selected",true);  // 使用该方法，在重新选择后，关闭窗口，再打开，设置的选中值为上次关闭时的选中值
+                        modal.find("#select-up-class-sort ").val(WebStack['Menu'].length - 1);
+                    }
+                    if (type == "edit") {
+                        modal.find("#select-up-class-sort ").val(modal.find(".modal-body #class-id").val());
+                    }
+                    modal.find("#select-class-sort").hide();
+                    modal.find("#select-class-sort").empty();
+                } else if ((index1 + "").indexOf("-") == -1) { // 添加子分类，上层分类位置选定当前顶层分类id
+                    modal.find("#select-up-class-sort").val(index1);
+                    modal.find("#select-up-class-sort").attr("disabled","disabled");
+                    // 显示当前顶层分类的子分类
+                    let menuSub = WebStack['Menu'][index1]['sub'];
+                    modal.find("#select-class-sort").find('option').remove();
+                    if (menuSub.length > 0) {
+                        modal.find("#select-class-sort").show();
+                        for (let i=0; i<menuSub.length; i++) {
+                            modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index1+'" value="'+index1+'-'+i+'">'+menuSub[i]['name']+'</option>');
+                        }
+                        modal.find("#select-class-sort").append('<option class="select-menu-sub select-menu-sub-'+index1+'" value="'+index1+'-'+menuSub.length+'">'+'(分类最后)'+'</option>');
+                        if (type == "add") {
+                            modal.find("#select-class-sort").val(index1+'-'+menuSub.length);
+                        }
+                        if (type == "edit") { // 编辑子分类，分类排序定位到当前子分类
+                            modal.find("#select-class-sort").val(modal.find(".modal-body #class-id").val());
+                        }
+                    } else {
+                        // 隐藏子分类
+                        modal.find("#select-class-sort").hide();
+                        modal.find("#select-class-sort").empty();
+                    }
+                }
         });
 
         $('#modal-web-delete').on('show.bs.modal', function (event) {
@@ -1393,7 +1501,7 @@
                 modal.find('.modal-body #web-image').text("选择图片");
             }
             //console.log("modal-web-edit", index);
-        })
+        });
 
         let nestedSortables = [].slice.call(document.querySelectorAll('.nested-sortable'));
         for (let i = 0; i < nestedSortables.length; i++) {
